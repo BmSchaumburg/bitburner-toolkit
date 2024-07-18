@@ -1,0 +1,57 @@
+// Array to store servers where you have root access
+let serversWithRootAccess = [];
+
+// Function to scan for servers with root access and add them to the list
+async function scanAndAddServersWithRootAccess(ns) {
+  const servers = await ns.scan();
+
+  for (let i = 0; i < servers.length; i++) {
+    const server = servers[i];
+
+    // Check if you have root access to the server and it's not the "home" server
+    const hasRootAccess = await ns.hasRootAccess(server);
+
+    if (server !== "home" && hasRootAccess && !serversWithRootAccess.includes(server)) {
+      serversWithRootAccess.push(server);
+      ns.tprint(`Added ${server} to the list of servers with root access.`);
+    }
+  }
+}
+
+// Function to continuously hack servers in the list
+async function continuouslyHackServers(ns) {
+  const maxDifficulty = 50; // Adjust the maximum difficulty threshold as needed
+
+  while (true) {
+    for (let i = 0; i < serversWithRootAccess.length; i++) {
+      const server = serversWithRootAccess[i];
+
+      // Get server difficulty
+      const serverDifficulty = await ns.getServerRequiredHackingLevel(server);
+
+      // Get the hostname of the current machine
+      const scriptHost = ns.getHostname();
+
+      // Check if server difficulty is below the maximum threshold and not the "home" server
+      if (server !== "home" && serverDifficulty <= maxDifficulty) {
+        ns.tprint(`From [${scriptHost}] Initiating hack on ${server}...`);
+        const success = await ns.hack(server);
+        if (success) {
+          ns.tprint(`From [${scriptHost}] Successfully hacked ${server}!`);
+        } else {
+          ns.tprint(`From [${scriptHost}] Failed to hack ${server}. Retrying...`);
+        }
+      } else if (server !== "home") {
+        ns.tprint(`From [${scriptHost}] Skipping ${server} due to high difficulty (${serverDifficulty}).`);
+      }
+
+      await ns.sleep(1000); // Adjust sleep time as needed
+    }
+  }
+}
+
+// Main function to execute script
+export async function main(ns) {
+  await scanAndAddServersWithRootAccess(ns);
+  await continuouslyHackServers(ns);
+}
