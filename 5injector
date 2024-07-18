@@ -1,0 +1,52 @@
+// deploy_package.script
+
+// Define script names to deploy
+const scriptNames = [
+    "deepscan.js",
+    "grouproot.js",
+    "groupH.js",
+    "groupW.js",
+    // Add more script names as needed
+];
+
+// Function to scan and add servers with root access to the list
+async function scanAndAddServersWithRootAccess(ns, serversWithRootAccess) {
+    const servers = await ns.scan();
+
+    for (let i = 0; i < servers.length; i++) {
+        const server = servers[i];
+        const hasRootAccess = await ns.hasRootAccess(server);
+
+        if (hasRootAccess && !serversWithRootAccess.includes(server)) {
+            serversWithRootAccess.push(server);
+            ns.tprint(`Added ${server} to the list of servers with root access.`);
+        }
+    }
+}
+
+// Function to deploy scripts to servers with root access
+async function deployScriptsToServers(ns, serversWithRootAccess, scriptNames) {
+    for (let i = 0; i < serversWithRootAccess.length; i++) {
+        const server = serversWithRootAccess[i];
+        
+        // Copy each script to the target server
+        for (let j = 0; j < scriptNames.length; j++) {
+            const scriptName = scriptNames[j];
+            await ns.scp(scriptName, server);
+            ns.tprint(`Script ${scriptName} deployed to ${server}`);
+        }
+    }
+}
+
+// Main function to execute script
+export async function main(ns) {
+    let serversWithRootAccess = []; // Array to store servers with root access
+    await scanAndAddServersWithRootAccess(ns, serversWithRootAccess);
+
+    if (serversWithRootAccess.length === 0) {
+        ns.tprint("No servers found with root access.");
+        return;
+    }
+
+    await deployScriptsToServers(ns, serversWithRootAccess, scriptNames);
+}
