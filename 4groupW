@@ -1,0 +1,69 @@
+// Function to scan for servers with root access and add them to the list
+async function scanAndAddServersWithRootAccess(ns, serversWithRootAccess) {
+  const servers = await ns.scan();
+
+  for (let i = 0; i < servers.length; i++) {
+    const server = servers[i];
+
+    // Check if you have root access to the server
+    const hasRootAccess = await ns.hasRootAccess(server);
+
+    if (hasRootAccess && !serversWithRootAccess.includes(server)) {
+      serversWithRootAccess.push(server);
+      ns.tprint(`Added ${server} to the list of servers with root access.`);
+    }
+  }
+}
+
+// Function to continuously weaken servers with high security levels
+async function continuouslyWeakenServers(ns, serversWithRootAccess, maxSecurityLevel) {
+  // Sort servers by security level in descending order
+  serversWithRootAccess.sort(async (a, b) => {
+    const securityA = await ns.getServerSecurityLevel(a);
+    const securityB = await ns.getServerSecurityLevel(b);
+    return securityB - securityA;
+  });
+
+  // Iterate over servers and weaken those with security level above the threshold
+  for (let i = 0; i < serversWithRootAccess.length; i++) {
+    const server = serversWithRootAccess[i];
+    const securityLevel = await ns.getServerSecurityLevel(server);
+
+    ns.tprint(`Server: ${server} - Security Level: ${securityLevel}`);
+
+    if (securityLevel > maxSecurityLevel) {
+      ns.tprint(`Weakening ${server} with security level ${securityLevel}...`);
+
+      // Calculate weaken amount based on security level (adjust as needed)
+      const weakenAmount = Math.ceil(securityLevel / 3);
+
+      // Attempt to weaken the server
+      const success = await ns.weaken(server, { weakenAmount });
+
+      if (success) {
+        const newSecurityLevel = await ns.getServerSecurityLevel(server);
+        ns.tprint(`Successfully weakened ${server}! New security level: ${newSecurityLevel}`);
+      } else {
+        ns.tprint(`Failed to weaken ${server}. Retrying...`);
+      }
+    } else {
+      ns.tprint(`Skipping ${server} with security level ${securityLevel}.`);
+    }
+
+    await ns.sleep(1000); // Adjust sleep time as needed between each server
+  }
+}
+
+// Main function to execute script
+export async function main(ns) {
+  let serversWithRootAccess = []; // Array to store servers with root access
+  await scanAndAddServersWithRootAccess(ns, serversWithRootAccess);
+
+  const maxSecurityLevelToWeaken = 15; // Adjust the security threshold as needed
+
+  // Continuously weaken servers with high security levels
+  while (true) {
+    await continuouslyWeakenServers(ns, serversWithRootAccess, maxSecurityLevelToWeaken);
+    await ns.sleep(5000); // Sleep between iterations to avoid overwhelming the system
+  }
+}
