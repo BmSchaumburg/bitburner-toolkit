@@ -1,0 +1,34 @@
+// Function to scan and list servers with port requirements, difficulty, security level, root access status, RAM, and CPU
+async function scanAndListServers(ns) {
+  const servers = await ns.scan();
+
+  ns.tprint("Servers:");
+  for (let i = 0; i < servers.length; i++) {
+    const server = servers[i];
+
+    // Get server details
+    const numPorts = await ns.getServerNumPortsRequired(server);
+    const hackingLevel = await ns.getServerRequiredHackingLevel(server);
+    const securityLevel = await ns.getServerSecurityLevel(server);
+    const hasRootAccess = await ns.hasRootAccess(server);
+    const maxRam = await ns.getServerMaxRam(server);
+    const ramUsed = await ns.getServerUsedRam(server);
+
+
+    // Determine root access status message
+    let rootAccessMsg = "No root access";
+    if (hasRootAccess) {
+      rootAccessMsg = "Root access";
+    }
+
+    // Print server details
+    ns.tprint(`${server} - Difficulty: ${hackingLevel}, Security Level: ${securityLevel}, ${rootAccessMsg}`);
+    ns.tprint(`  RAM: Used-${ramUsed.toFixed(2)}GB / Avail-${maxRam.toFixed(2)}GB`);
+
+  }
+}
+
+// Main function to execute script
+export async function main(ns) {
+  await scanAndListServers(ns);
+}
