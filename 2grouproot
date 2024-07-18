@@ -1,0 +1,86 @@
+// Function to scan for servers without root access and add them to the list
+async function scanAndAddServersWithoutRootAccess(ns, serversWithoutRootAccess) {
+  const servers = await ns.scan();
+
+  for (let i = 0; i < servers.length; i++) {
+    const server = servers[i];
+
+    // Check if you do not have root access to the server
+    const hasRootAccess = await ns.hasRootAccess(server);
+
+    if (!hasRootAccess && !serversWithoutRootAccess.includes(server)) {
+      serversWithoutRootAccess.push(server);
+      ns.tprint(`Added ${server} to the list of servers without root access.`);
+    }
+  }
+}
+
+// Function to continuously gain root access using brutessh, ftpcrack, and nuke
+async function continuouslyGainRootAccess(ns, serversWithoutRootAccess) {
+  while (true) {
+    ns.tprint("Attempting to gain root access on servers without root access...");
+    let gainedAccess = false; // Flag to track if root access was gained
+
+    // Iterate over servers without root access and attempt to gain access
+    for (let i = 0; i < serversWithoutRootAccess.length; i++) {
+      const server = serversWithoutRootAccess[i];
+
+      // Check if server requires ports for hacking
+      const requiresPorts = await ns.getServerNumPortsRequired(server);
+
+      // Attempt to gain SSH access using brutessh if necessary
+      if (requiresPorts > 0) {
+        ns.tprint(`${server} requires ${requiresPorts} port(s) for hacking.`);
+
+        // Attempt brutessh
+        ns.tprint(`Attempting to gain SSH access to ${server} using brutessh...`);
+        const brutesshSuccess = await ns.brutessh(server);
+        if (brutesshSuccess) {
+          ns.tprint(`SSH access gained on ${server} using brutessh.`);
+        } else {
+          ns.tprint(`Failed to gain SSH access on ${server} using brutessh.`);
+          continue; // Skip to the next server if brutessh fails
+        }
+      }
+
+      // Attempt to gain FTP access using ftpcrack if necessary
+      if (await ns.getServerNumPortsRequired(server, 'ftp') > 0) {
+        ns.tprint(`Attempting to crack FTP on ${server}...`);
+        const ftpcrackSuccess = await ns.ftpcrack(server);
+        if (ftpcrackSuccess) {
+          ns.tprint(`FTP cracked on ${server}.`);
+        } else {
+          ns.tprint(`Failed to crack FTP on ${server}.`);
+          continue; // Skip to the next server if ftpcrack fails
+        }
+      }
+
+      // Attempt to gain root access using nuke
+      ns.tprint(`Executing nuke on ${server} to gain root access...`);
+      const nukeSuccess = await ns.nuke(server);
+
+      // Check if nuke was successful
+      if (nukeSuccess) {
+        ns.tprint(`Successfully gained root access on ${server}!`);
+        gainedAccess = true; // Set flag to true if root access was gained
+      } else {
+        ns.tprint(`Failed to gain root access on ${server}. Retrying...`);
+      }
+
+      await ns.sleep(1000); // Adjust sleep time as needed
+    }
+
+    if (gainedAccess) {
+      break; // Exit the main loop if root access was gained
+    }
+
+    await ns.sleep(5000); // Sleep between iterations to avoid overwhelming the system
+  }
+}
+
+// Main function to execute script
+export async function main(ns) {
+  let serversWithoutRootAccess = []; // Array to store servers without root access
+  await scanAndAddServersWithoutRootAccess(ns, serversWithoutRootAccess);
+  await continuouslyGainRootAccess(ns, serversWithoutRootAccess);
+}
